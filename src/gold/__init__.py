@@ -8,7 +8,7 @@ import duckdb
 
 from config import GOLD_PATH, SILVER_PATH
 from src.gold import vin_last_state, top_fastest
-from src.anomaly_detection import detect
+from src.tools.anomaly_detection import detect
 
 logger = logging.getLogger(__name__)
 
