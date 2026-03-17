@@ -1,15 +1,39 @@
 """
 SQL injection detection on the Bronze dataset.
 
-Optimization strategy — two-stage filtering:
-  Stage 1: cheap CONTAINS checks for known suspicious characters (;, --, etc.)
-           — no regex engine involved, runs at native string-scan speed.
-  Stage 2: full regex match, executed ONLY on rows that survived Stage 1.
+Usage
+-----
+    from src.tools.sql_injection_detection import sql_injection_report
 
-On clean data (the realistic majority at scale) almost no rows reach Stage 2,
-making the overall scan significantly cheaper than applying regex unconditionally.
-Both stages run inside DuckDB, which processes columns in vectorized C++
-rather than row-by-row in Python.
+    sql_injection_report(
+        columns=["vin", "manufacturer", "model"],
+        patterns=[r"('(''|[^'])*')|(;)|(\b(ALTER|CREATE|DELETE|DROP|SELECT)\b)"],
+    )
+
+How it works — two-stage filtering
+------------------------------------
+Regex matching is expensive at scale: evaluating a complex pattern against
+millions of string values is CPU-intensive, especially when the vast majority
+of values are clean.
+
+This implementation avoids running the regex unconditionally by splitting the
+scan into two stages:
+
+  Stage 1 — cheap pre-filter
+    Check each value for known suspicious characters (', ;, --, /*, ()
+    using simple string CONTAINS — no regex engine, runs at native scan speed.
+    On a clean dataset almost every row is rejected here.
+
+  Stage 2 — full regex, only on suspects
+    Only rows that passed Stage 1 are evaluated against the full pattern.
+    DuckDB short-circuits the AND: if Stage 1 fails, Stage 2 never executes.
+
+Additional optimisations applied:
+  - All caller-supplied patterns are merged into a single regex with | so each
+    value is scanned exactly once regardless of how many patterns are passed in.
+  - Both stages run inside DuckDB, which processes columns in vectorized C++
+    rather than row-by-row in Python.
+  - The merged pattern is built once before the loop, not inside it.
 """
 import logging
 from pathlib import Path
