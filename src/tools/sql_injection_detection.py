@@ -56,6 +56,7 @@ def sql_injection_report(
     bronze_path: Path = BRONZE_PATH,
     out_path: Path = REPORTS_PATH / "sql_injection",
     date: Optional[str] = None,
+    hour: Optional[int] = None,
 ) -> int:
     """
     Scan Bronze parquet files for SQL injection patterns and write a CSV report.
@@ -68,6 +69,7 @@ def sql_injection_report(
         out_path:    Directory where the CSV report is written.
         date:        Restrict scan to a single date partition (e.g. "2026-03-16").
                      If omitted, all dates are scanned.
+        hour:        Restrict scan to a specific hour (0-23). Only used when date is also set.
 
     Returns:
         Total number of violating rows found.
@@ -75,11 +77,12 @@ def sql_injection_report(
     out_path.mkdir(parents=True, exist_ok=True)
     out_file = out_path / "sql_injection_report.csv"
 
-    src = (
-        str(bronze_path / f"date={date}" / "**" / "*.parquet")
-        if date
-        else str(bronze_path / "**" / "*.parquet")
-    )
+    if date and hour is not None:
+        src = str(bronze_path / f"date={date}" / f"hour={hour}" / "*.parquet")
+    elif date:
+        src = str(bronze_path / f"date={date}" / "**" / "*.parquet")
+    else:
+        src = str(bronze_path / "**" / "*.parquet")
 
     conn = duckdb.connect()
 
