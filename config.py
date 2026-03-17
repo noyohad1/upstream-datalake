@@ -5,3 +5,4 @@ TOTAL_MESSAGES = 10_000
 BATCH_SIZE = 1_000
 
 BRONZE_PATH = Path("datalake/bronze")
+SILVER_PATH = Path("datalake/silver")
