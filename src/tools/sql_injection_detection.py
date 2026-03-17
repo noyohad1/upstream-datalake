@@ -17,7 +17,7 @@ from typing import List
 
 import duckdb
 
-from config import BRONZE_PATH
+from config import BRONZE_PATH, REPORTS_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ def sql_injection_report(
     columns: List[str],
     patterns: List[str],
     bronze_path: Path = BRONZE_PATH,
-    out_path: Path = Path("reports/sql_injection"),
+    out_path: Path = REPORTS_PATH / "sql_injection",
 ) -> int:
     """
     Scan Bronze parquet files for SQL injection patterns and write a CSV report.
