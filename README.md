@@ -2,6 +2,8 @@
 
 A local three-layer DataLake built on vehicle telemetry messages fetched from a local API.
 
+Data is fetched from the API into **pandas** DataFrames (via a straightforward HTTP ingestion step), while transformations and queries are executed in **DuckDB** — an in-process SQL engine optimized for analytical workloads that can efficiently query Parquet data with minimal memory overhead. This setup keeps ingestion simple and enables fast, expressive transformations.
+
 ## Layers
 
 | Layer | What it does |
