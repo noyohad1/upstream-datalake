@@ -6,6 +6,7 @@ Columns: vin, date_hour, top_velocity
 """
 import logging
 from pathlib import Path
+from typing import Optional
 
 import duckdb
 
@@ -27,12 +28,22 @@ QUALITY_CHECKS = {
 }
 
 
-def run(silver_path: Path, gold_path: Path) -> None:
+def run(silver_path: Path, gold_path: Path, date: Optional[str] = None) -> None:
+    """
+    Args:
+        date: Restrict to a single date partition (e.g. "2026-03-16").
+              If omitted, all dates are processed.
+    """
     out_path = gold_path / "top_fastest"
     out_path.mkdir(parents=True, exist_ok=True)
     out_file = out_path / "top_fastest.csv"
 
-    logger.info("Building top_fastest → %s", out_path)
+    src = (
+        str(silver_path / f"date={date}" / "**" / "*.parquet")
+        if date
+        else str(silver_path / "**" / "*.parquet")
+    )
+    logger.info("Building top_fastest → %s (source: %s)", out_path, src)
 
     duckdb.execute(f"""
         COPY (
@@ -45,7 +56,7 @@ def run(silver_path: Path, gold_path: Path) -> None:
                         PARTITION BY date, hour
                         ORDER BY MAX(velocity) DESC
                     ) AS rank
-                FROM read_parquet('{silver_path}/**/*.parquet')
+                FROM read_parquet('{src}')
                 GROUP BY vin, date, hour
             )
             SELECT vin, date_hour, top_velocity

@@ -3,6 +3,7 @@ Gold layer: runs all reports against the silver data.
 """
 import logging
 from pathlib import Path
+from typing import Optional
 
 import duckdb
 
@@ -13,11 +14,22 @@ from src.tools.anomaly_detection import detect
 logger = logging.getLogger(__name__)
 
 
-def run(silver_path: Path = SILVER_PATH, gold_path: Path = GOLD_PATH) -> None:
+def run(
+    silver_path: Path = SILVER_PATH,
+    gold_path: Path = GOLD_PATH,
+    date: Optional[str] = None,
+) -> None:
+    """
+    Args:
+        date: Optional date filter (e.g. "2026-03-16").
+              - top_fastest will only process that date's partitions.
+              - vin_last_state always reads all history (last-known-state requires full dataset).
+              - anomaly detection always reads all history (p95 threshold needs full dataset).
+    """
     logger.info("Starting gold layer")
 
     vin_last_state.run(silver_path, gold_path)
-    top_fastest.run(silver_path, gold_path)
+    top_fastest.run(silver_path, gold_path, date=date)
     _run_anomaly_detection(silver_path, gold_path)
 
     logger.info("Gold layer done")
