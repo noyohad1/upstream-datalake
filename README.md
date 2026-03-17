@@ -12,17 +12,20 @@ A local three-layer DataLake built on vehicle telemetry messages fetched from a 
 
 ## Running
 
-Each layer can be run independently from the project root:
-
+Run the full pipeline (Bronze → Silver → Gold):
 ```bash
-# Bronze — fetch from API and write raw parquet
-python -c "from src.bronze import run; run()"
+python main.py
+```
 
-# Silver — clean and standardize
-python -c "from src.silver import run; run()"
+Process only a specific date — reads just that day's partitions, skips everything else:
+```bash
+python main.py --date 2026-03-16
 
-# Gold — generate reports
-python -c "from src.gold import run; run()"
+# Narrow it further to a single hour
+python main.py --date 2026-03-16 --hour 17
+
+# Skip layers you don't need to re-run
+python main.py --skip-bronze --date 2026-03-16
 ```
 
 Output lands in `datalake/` (gitignored). Reports are CSV files, one subdirectory per report under `datalake/gold/`.
