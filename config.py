@@ -6,3 +6,4 @@ BATCH_SIZE = 1_000
 
 BRONZE_PATH = Path("datalake/bronze")
 SILVER_PATH = Path("datalake/silver")
+GOLD_PATH   = Path("datalake/gold")
