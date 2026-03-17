@@ -37,7 +37,7 @@ Additional optimisations applied:
 """
 import logging
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import duckdb
 
@@ -55,6 +55,7 @@ def sql_injection_report(
     patterns: List[str],
     bronze_path: Path = BRONZE_PATH,
     out_path: Path = REPORTS_PATH / "sql_injection",
+    date: Optional[str] = None,
 ) -> int:
     """
     Scan Bronze parquet files for SQL injection patterns and write a CSV report.
@@ -65,12 +66,20 @@ def sql_injection_report(
                      into a single regex (one pass per value, not N passes).
         bronze_path: Root of the Bronze parquet dataset.
         out_path:    Directory where the CSV report is written.
+        date:        Restrict scan to a single date partition (e.g. "2026-03-16").
+                     If omitted, all dates are scanned.
 
     Returns:
         Total number of violating rows found.
     """
     out_path.mkdir(parents=True, exist_ok=True)
     out_file = out_path / "sql_injection_report.csv"
+
+    src = (
+        str(bronze_path / f"date={date}" / "**" / "*.parquet")
+        if date
+        else str(bronze_path / "**" / "*.parquet")
+    )
 
     conn = duckdb.connect()
 
@@ -89,7 +98,7 @@ def sql_injection_report(
         # Stage 2: full regex, only evaluated when Stage 1 passes.
         per_column_queries.append(f"""
             SELECT *, '{col}' AS violating_column
-            FROM read_parquet('{bronze_path}/**/*.parquet')
+            FROM read_parquet('{src}')
             WHERE ({pre_filter})
               AND regexp_matches(CAST({col} AS VARCHAR), '{combined_pattern}')
         """)
