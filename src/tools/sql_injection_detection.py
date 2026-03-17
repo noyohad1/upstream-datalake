@@ -37,11 +37,11 @@ Additional optimisations applied:
 """
 import logging
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import duckdb
 
-from config import BRONZE_PATH
+from config import BRONZE_PATH, REPORTS_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,9 @@ def sql_injection_report(
     columns: List[str],
     patterns: List[str],
     bronze_path: Path = BRONZE_PATH,
-    out_path: Path = Path("reports/sql_injection"),
+    out_path: Path = REPORTS_PATH / "sql_injection",
+    date: Optional[str] = None,
+    hour: Optional[int] = None,
 ) -> int:
     """
     Scan Bronze parquet files for SQL injection patterns and write a CSV report.
@@ -65,12 +67,22 @@ def sql_injection_report(
                      into a single regex (one pass per value, not N passes).
         bronze_path: Root of the Bronze parquet dataset.
         out_path:    Directory where the CSV report is written.
+        date:        Restrict scan to a single date partition (e.g. "2026-03-16").
+                     If omitted, all dates are scanned.
+        hour:        Restrict scan to a specific hour (0-23). Only used when date is also set.
 
     Returns:
         Total number of violating rows found.
     """
     out_path.mkdir(parents=True, exist_ok=True)
     out_file = out_path / "sql_injection_report.csv"
+
+    if date and hour is not None:
+        src = str(bronze_path / f"date={date}" / f"hour={hour}" / "*.parquet")
+    elif date:
+        src = str(bronze_path / f"date={date}" / "**" / "*.parquet")
+    else:
+        src = str(bronze_path / "**" / "*.parquet")
 
     conn = duckdb.connect()
 
@@ -89,7 +101,7 @@ def sql_injection_report(
         # Stage 2: full regex, only evaluated when Stage 1 passes.
         per_column_queries.append(f"""
             SELECT *, '{col}' AS violating_column
-            FROM read_parquet('{bronze_path}/**/*.parquet')
+            FROM read_parquet('{src}')
             WHERE ({pre_filter})
               AND regexp_matches(CAST({col} AS VARCHAR), '{combined_pattern}')
         """)
