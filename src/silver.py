@@ -9,6 +9,7 @@ Transformations:
 """
 import logging
 from pathlib import Path
+from typing import Optional
 
 import duckdb
 
@@ -33,12 +34,36 @@ QUALITY_CHECKS = {
 }
 
 
-def run(bronze_path: Path = BRONZE_PATH, silver_path: Path = SILVER_PATH) -> None:
+def _source_glob(bronze_path: Path, date: Optional[str], hour: Optional[int]) -> str:
+    """Build a partition-pruned glob path based on the provided filters."""
+    if date and hour is not None:
+        return str(bronze_path / f"date={date}" / f"hour={hour}" / "*.parquet")
+    if date:
+        return str(bronze_path / f"date={date}" / "**" / "*.parquet")
+    return str(bronze_path / "**" / "*.parquet")
+
+
+def run(
+    bronze_path: Path = BRONZE_PATH,
+    silver_path: Path = SILVER_PATH,
+    date: Optional[str] = None,
+    hour: Optional[int] = None,
+) -> None:
+    """
+    Transform Bronze → Silver.
+
+    Args:
+        date: Restrict to a single date partition (e.g. "2026-03-16").
+              If omitted, all dates are processed.
+        hour: Restrict to a specific hour (0–23). Only used when date is also set.
+    """
     logger.info("Starting silver transformation")
 
     conn = duckdb.connect()
 
     silver_path.mkdir(parents=True, exist_ok=True)
+    src = _source_glob(bronze_path, date, hour)
+    logger.info("Reading from: %s", src)
 
     # Map string gear names to integers: REVERSE → -1, NEUTRAL → 0.
     # LOWER + TRIM applied first to catch case/whitespace variants.
@@ -63,7 +88,7 @@ def run(bronze_path: Path = BRONZE_PATH, silver_path: Path = SILVER_PATH) -> Non
                 driverSeatbeltState         AS driver_seatbelt_state,
                 date,
                 hour
-            FROM '{bronze_path}/**/*.parquet'
+            FROM '{src}'
             WHERE vin IS NOT NULL
               AND TRIM(vin) != ''
         ) TO '{silver_path}' (
